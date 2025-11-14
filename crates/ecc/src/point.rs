@@ -1,11 +1,28 @@
 use core::fmt;
 use core::ops::Add;
 
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Point(Option<i128>, Option<i128>, i128, i128);
+#[derive(Debug, Clone, Copy)]
+pub struct Point<T>(Option<T>, Option<T>, T, T);
 
-impl Point {
+
+
+impl<T> Point<T>
+where
+    T: Copy
+        + PartialEq
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + From<u8>,
+        {
     pub fn new(x: Option<i128>, y: Option<i128>, a: i128, b: i128) -> Result<Self, String> {
+
+          // Point at infinity: (None, None)
+        if x.is_none() && y.is_none() {
+            return Self (x, y, a, b );
+        }
+
         match (x, y) {
             (Some(x), Some(y)) => {
                 if y.pow(2) != x.pow(3) + (a * x) + b {
@@ -27,8 +44,18 @@ impl Point {
     pub const fn b(&self) -> i128 { self.3 }
 }
 
-impl Point {
+impl<F> Point<F>
+where
+    F: Copy
+        + PartialEq
+        + Add<Output = F>
+        + Sub<Output = F>
+        + Mul<Output = F>
+        + Div<Output = F>
+        + From<u8>,
     pub const fn infinity(&self) -> Self { Self(None, None, self.a(), self.b()) }
+
+    pub const fn is_infinity(&self) -> bool { self.x().is_none() && self.y().is_none() }
 }
 
 impl PartialEq for Point {

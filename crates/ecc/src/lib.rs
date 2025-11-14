@@ -3,7 +3,6 @@
 #![feature(stmt_expr_attributes)]
 
 mod field_element;
-mod num;
 mod ops;
 mod point;
 
