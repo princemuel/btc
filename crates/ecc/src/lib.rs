@@ -2,9 +2,9 @@
 #![feature(const_ops)]
 #![feature(stmt_expr_attributes)]
 
-mod field_element;
+mod field;
 mod ops;
 mod point;
 
-pub use field_element::FieldElement;
+pub use field::Field;
 pub use point::Point;

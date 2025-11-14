@@ -1,135 +1,92 @@
 use core::fmt;
 use core::ops::Add;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Point<T>(Option<T>, Option<T>, T, T);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Point<const A: i128, const B: i128> {
+    Point(i128, i128),
+    Infinity,
+}
 
-
-
-impl<T> Point<T>
-where
-    T: Copy
-        + PartialEq
-        + Add<Output = T>
-        + Sub<Output = T>
-        + Mul<Output = T>
-        + Div<Output = T>
-        + From<u8>,
-        {
-    pub fn new(x: Option<i128>, y: Option<i128>, a: i128, b: i128) -> Result<Self, String> {
-
-          // Point at infinity: (None, None)
-        if x.is_none() && y.is_none() {
-            return Self (x, y, a, b );
+impl<const A: i128, const B: i128> Point<A, B> {
+    pub fn new(x: i128, y: i128) -> Result<Self, &'static str> {
+        // if y.pow(2) != x.pow(3) + (a * x) + b
+        if y.pow(2) != x.pow(3) + A * x + B {
+            return Err("Invalid parameters to Point::<5, 7>::new(). Point is not on the curve");
         }
 
-        match (x, y) {
-            (Some(x), Some(y)) => {
-                if y.pow(2) != x.pow(3) + (a * x) + b {
-                    return Err(format!("({x}, {y}) is not on the curve"));
-                }
-                Ok(Self(Some(x), Some(y), a, b))
-            },
-            (None, None) => Ok(Self(None, None, a, b)),
-            _ => Err("Invalid parameters to Point::new()".to_owned()),
+        Ok(Self::Point(x, y))
+    }
+
+    pub const fn x(&self) -> Option<i128> {
+        match self {
+            Self::Point(x, _) => Some(*x),
+            Self::Infinity => None,
         }
     }
 
-    pub const fn x(&self) -> Option<i128> { self.0 }
-
-    pub const fn y(&self) -> Option<i128> { self.1 }
-
-    pub const fn a(&self) -> i128 { self.2 }
-
-    pub const fn b(&self) -> i128 { self.3 }
-}
-
-impl<F> Point<F>
-where
-    F: Copy
-        + PartialEq
-        + Add<Output = F>
-        + Sub<Output = F>
-        + Mul<Output = F>
-        + Div<Output = F>
-        + From<u8>,
-    pub const fn infinity(&self) -> Self { Self(None, None, self.a(), self.b()) }
-
-    pub const fn is_infinity(&self) -> bool { self.x().is_none() && self.y().is_none() }
-}
-
-impl PartialEq for Point {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.x() == rhs.x() && self.y() == rhs.y() && self.a() == rhs.a() && self.b() == rhs.b()
+    pub const fn y(&self) -> Option<i128> {
+        match self {
+            Self::Point(_, y) => Some(*y),
+            Self::Infinity => None,
+        }
     }
+
+    pub const fn a(&self) -> i128 { A }
+
+    pub const fn b(&self) -> i128 { B }
 }
 
-impl Add for Point {
+impl<const A: i128, const B: i128> Point<A, B> {
+    pub const fn infinity() -> Self { Self::Infinity }
+
+    pub const fn is_infinity(&self) -> bool { matches!(self, Self::Infinity) }
+}
+
+impl<const A: i128, const B: i128> Add for Point<A, B> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        if self.a() != rhs.a() || self.b() != rhs.b() {
-            panic!("Points {self}, {rhs} are not on the same curve");
-        }
-
-        // Case 0.0: self is the point at infinity, return rhs
-        if self.x().is_none() {
-            return rhs;
-        }
-
-        // Case 0.1: rhs is the point at infinity, return self
-        if rhs.x().is_none() {
-            return self;
-        }
-
-        // We can unwrap thegit se as we know they're not none
-        let [x1, y1, x2, y2] = [
-            self.x().unwrap(),
-            self.y().unwrap(),
-            rhs.x().unwrap(),
-            rhs.y().unwrap(),
-        ];
-
-        // Case 1: self.x == rhs.x, self.y != rhs.y. The vertical
-        // The vertical line results in a point at infinity
-        if x1 == x2 && y1 != y2 {
-            return self.infinity();
-        }
-
-        // Case 2: self.x ≠ rhs.x
-        // Formula (x, y) == (x1, y1) + (x2, y2)
-        // s = (y2 - y1) / (x2 - x1)
-        // x = s ** 2 - x1 - x2
-        // y = s * (x1 - x) - y1
-        if x1 != x2 {
-            let s = (y2 - y1) / (x2 - x1);
-            let x = s.pow(2) - x1 - x2;
-            let y = s * (x1 - x) - y1;
-            return Self(Some(x), Some(y), self.a(), self.b());
-        }
-
-        // Case 3: self == rhs
-        // Formula (x, y) = (x1, y1) + (x1, y1)
-        // s = (3 * x1 ** 2 + a) / (2 * y1)
-        // x = s ** 2 - 2 * x1
-        // y = s * (x1 - x) - y1
-        if self == rhs {
+        match (self, rhs) {
+            (Self::Infinity, Self::Infinity) => Self::infinity(),
+            // Case 0.0: self is the point at infinity, return rhs
+            (Self::Infinity, Self::Point(..)) => rhs,
+            // Case 0.1: rhs is the point at infinity, return self
+            (Self::Point(..), Self::Infinity) => self,
+            // Case 1: self.x == rhs.x, self.y != rhs.y
+            // The vertical line results in a point at infinity
+            (Self::Point(x1, y1), Self::Point(x2, y2)) if x1 == x2 && y1 != y2 => Self::infinity(),
+            // Case 2: self.x ≠ rhs.x
+            // Formula (x, y) == (x1, y1) + (x2, y2)
+            // s = (y2 - y1) / (x2 - x1)
+            // x = s ** 2 - x1 - x2
+            // y = s * (x1 - x) - y1
+            (Self::Point(x1, y1), Self::Point(x2, y2)) if x1 != x2 => {
+                let s = (y2 - y1) / (x2 - x1);
+                let x = s.pow(2) - (x1 + x2);
+                let y = s * (x1 - x) - y1;
+                Self::Point(x, y)
+            },
             // if we are tangent to the vertical line,
-            if y1 == 0 {
-                return self.infinity();
-            }
-
-            let s = (3 * x1.pow(2) + self.a()) / (2 * y1);
-            let x = s.pow(2) - 2 * x1;
-            let y = s * (x1 - x) - y1;
-            return Self(Some(x), Some(y), self.a(), self.b());
+            (Self::Point(x1, y1), Self::Point(x2, y2)) if x1 == x2 && (y1 == 0 || y2 == 0) => {
+                Self::infinity()
+            },
+            // Case 3: self == rhs
+            // Formula (x, y) = (x1, y1) + (x1, y1)
+            // s = (3 * x1 ** 2 + a) / (2 * y1)
+            // x = s ** 2 - 2 * x1
+            // y = s * (x1 - x) - y1
+            (Self::Point(x1, y1), Self::Point(x2, y2)) if x1 == x2 && y1 == y2 => {
+                let s = (3 * x1.pow(2) + self.a()) / (2 * y1);
+                let x = s.pow(2) - 2 * x1;
+                let y = s * (x1 - x) - y1;
+                Self::Point(x, y)
+            },
+            _ => unreachable!(),
         }
-
-        unreachable!();
     }
 }
 
-impl fmt::Display for Point {
+impl<const A: i128, const B: i128> fmt::Display for Point<A, B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.x().is_none() || self.y().is_none() {
             return write!(f, "Point(infinity)");
@@ -155,44 +112,56 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ne() {
-        let a = Point::new(Some(3), Some(-7), 5, 7).unwrap();
-        let b = Point::new(Some(18), Some(77), 5, 7).unwrap();
-        assert!(a != b);
-        assert!(!(a != a));
+    fn test_create_valid_point() {
+        assert!(Point::<5, 7>::new(-1, -1).is_ok());
     }
 
     #[test]
-    fn test_on_curve() {
-        let _ = Point::new(Some(3), Some(-7), 5, 7).unwrap();
-        let _ = Point::new(Some(18), Some(77), 5, 7).unwrap();
+    fn test_create_invalid_point() {
+        assert!(Point::<5, 7>::new(-1, -2).is_err());
     }
 
     #[test]
-    #[should_panic]
-    fn test_not_on_curve() { let _ = Point::new(Some(-2), Some(4), 5, 7).unwrap(); }
+    fn test_points_with_same_cords_are_equal() {
+        let a = Point::<5, 7>::new(-1, -1).unwrap();
+        let b = Point::<5, 7>::new(-1, -1).unwrap();
 
-    #[test]
-    fn test_add0() {
-        let a = Point::new(None, None, 5, 7).unwrap();
-        let b = Point::new(Some(2), Some(5), 5, 7).unwrap();
-        let c = Point::new(Some(2), Some(-5), 5, 7).unwrap();
-
-        assert_eq!(a + b, b);
-        assert_eq!(b + a, b);
-        assert_eq!(b + c, a);
+        assert_eq!(a, b);
     }
 
     #[test]
-    fn test_add1() {
-        let a = Point::new(Some(3), Some(7), 5, 7).unwrap();
-        let b = Point::new(Some(-1), Some(-1), 5, 7).unwrap();
-        assert_eq!(a + b, Point(Some(2), Some(-5), 5, 7));
+    fn test_points_with_different_cords_are_different() {
+        let a = Point::<5, 7>::new(-1, -1).unwrap();
+        let b = Point::<5, 7>::new(18, 77).unwrap();
+
+        assert_ne!(a, b);
     }
 
     #[test]
-    fn test_add2() {
-        let a = Point::new(Some(-1), Some(1), 5, 7).unwrap();
-        assert_eq!(a + a, Point(Some(18), Some(-77), 5, 7));
+    fn test_sum_inifity_and_another_point_returns_the_point() {
+        let inf = Point::<5, 7>::infinity();
+        let point = Point::<5, 7>::new(-1, -1).unwrap();
+
+        assert_eq!(point + inf, point);
+        assert_eq!(inf + point, point);
+    }
+
+    #[test]
+    fn test_two_different_points_from_the_same_curve_can_be_added() {
+        let a = Point::<5, 7>::new(2, 5).unwrap();
+        let b = Point::<5, 7>::new(-1, -1).unwrap();
+
+        let expected = Point::<5, 7>::new(3, -7).unwrap();
+        assert_eq!(a + b, expected);
+        assert_eq!(b + a, expected);
+    }
+
+    #[test]
+    fn test_adding_the_same_point_results_infinity() {
+        let a = Point::<5, 7>::new(-1, -1).unwrap();
+        let b = Point::<5, 7>::new(-1, 1).unwrap();
+
+        let expected = Point::<5, 7>::infinity();
+        assert_eq!(a + b, expected);
     }
 }
