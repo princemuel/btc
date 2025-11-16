@@ -4,7 +4,7 @@ This repository is a Bitcoin utility library written in Rust, inspired by the ex
 
 The book teaches how to build a Bitcoin library from the ground up, starting with foundational cryptographic concepts and progressing to Bitcoin-specific features such as transactions, scripts, blocks, and networking.
 
-The exercises in the book are originally implemented in Python. This repository aims to provide an idiomatic Rust implementation, leveraging Rust’s safety and performance features while staying true to the book’s learning objectives. It is currently the most comprehensive(ish) Rust port of the library on GitHub.
+The exercises in the book are originally implemented in Python. This repository aims to provide an idiomatic Rust implementation, leveraging Rust’s safety and performance features while staying true to the book’s learning objectives.  
 
 ## Progress Checklist
 
