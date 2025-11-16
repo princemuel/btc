@@ -1,9 +1,12 @@
 [package]
-name = "ecc"
-version = "0.1.0"
-edition = "2024"
+  name = "ecc"
+  version = "0.1.0"
+  edition = "2024"
 
 [dependencies]
 
+[dev-dependencies]
+  rand = "0.9"
+
 [lints]
-workspace = true
+  workspace = true
